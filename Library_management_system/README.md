@@ -406,7 +406,33 @@ ON e.branch_id = b.branch_id
 GROUP BY 1, 2
 ```
 
-**Task 18: Stored Procedure**
+**Task 18: Identify Members Issuing High-Risk Books**
+Write a query to identify members who have issued books more than twice with the status "damaged" in the books table. Display the member name, book title, and the number of times they've issued damaged books.
+```sql
+SELECT 
+    m.member_id,
+    m.member_name,
+    b.book_title,
+    b.isbn,
+    COUNT(ist.issued_id) as issued_damaged_books
+FROM 
+issued_status as ist
+JOIN
+books as b
+ON b.isbn = ist.issued_book_isbn
+JOIN 
+return_status as rs
+ON rs.issued_id = ist.issued_id
+JOIN 
+members as m
+    ON m.member_id = ist.issued_member_id 
+WHERE rs.book_quality = 'Damaged'
+GROUP BY 1,2
+HAVING 
+    COUNT(*) >= 2;
+```
+
+**Task 19: Stored Procedure**
 Objective:
 Create a stored procedure to manage the status of books in a library system.
 Description:
@@ -469,7 +495,51 @@ WHERE isbn = '978-0-375-41398-8'
 
 ```
 
+**Task 20: Create Table As Select (CTAS)** Objective: Create a CTAS (Create Table As Select) query to identify overdue books and calculate fines.
 
+Description: Write a CTAS query to create a new table that lists each member and the books they have issued but not returned within 30 days. The table should include:
+    The number of overdue books.
+    The total fines, with each day's fine calculated at $0.50.
+    The number of books issued by each member.
+    The resulting table should show:
+    Member ID
+    Number of overdue books
+    Total fines
+
+```sql
+CREATE TABLE overdue_fines AS
+SELECT 
+    ist.issued_member_id AS member_id,
+    COUNT(*) AS total_overdue_books,
+    (
+        SELECT COUNT(*)
+        FROM issued_status ist_sub
+        WHERE ist_sub.issued_member_id = ist.issued_member_id
+    ) AS total_issued_books,
+    SUM(CASE 
+        WHEN (CURRENT_DATE - ist.issued_date) > 30 THEN 
+            (CURRENT_DATE - ist.issued_date) - 30 
+        ELSE 0 
+    END) AS total_overdue_days,
+    SUM(CASE 
+        WHEN (CURRENT_DATE - ist.issued_date) > 30 THEN 
+            ((CURRENT_DATE - ist.issued_date) - 30) * 0.50 
+        ELSE 0 
+    END) AS total_fines
+FROM 
+    issued_status AS ist
+LEFT JOIN 
+    return_status AS rs ON ist.issued_id = rs.issued_id
+WHERE 
+    rs.return_id IS NULL
+GROUP BY 
+    ist.issued_member_id
+ORDER BY 
+    ist.issued_member_id;
+
+
+SELECT * FROM overdue_fines;
+```
 
 ## Reports
 
